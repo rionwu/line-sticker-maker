@@ -2,196 +2,62 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>LINE 動態貼圖 AI 影格產生器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINE 動態貼圖 AI 影格生成器</title>
     <style>
-        :root {
-            --primary: #00B900;
-            --bg: #121212;
-            --card: #1E1E1E;
-            --text: #FFFFFF;
-            --subtext: #AAAAAA;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 16px;
-            box-sizing: border-box;
-        }
-        .card {
-            background: var(--card);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-            border: 1px solid #333;
-        }
-        h1 {
-            font-size: 1.2rem;
-            color: var(--primary);
-            margin-top: 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        label {
-            display: block;
-            font-size: 0.85rem;
-            color: var(--subtext);
-            margin-bottom: 6px;
-        }
-        input, textarea, select {
-            width: 100%;
-            box-sizing: border-box;
-            background: #2A2A2A;
-            border: 1px solid #444;
-            color: #FFF;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            font-size: 1rem;
-        }
-        input:focus, textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-        button {
-            width: 100%;
-            background: var(--primary);
-            color: #FFF;
-            border: none;
-            padding: 14px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        button:active { opacity: 0.8; }
-        button:disabled { background: #555; cursor: not-allowed; }
-        .preview-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin-top: 12px;
-        }
-        .preview-grid img {
-            width: 100%;
-            aspect-ratio: 1;
-            object-fit: contain;
-            background: repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50% / 16px 16px;
-            border-radius: 6px;
-            border: 1px solid #444;
-        }
-        .tip-box {
-            background: #252d25;
-            border: 1px solid #005500;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            color: #88ee88;
-            margin-bottom: 12px;
-        }
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        label { font-weight: bold; display: block; margin-top: 10px; }
+        input, select, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background: #00b900; color: white; font-weight: bold; border: none; margin-top: 15px; cursor: pointer; }
+        button:disabled { background: #ccc; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+        .grid img { width: 100%; height: auto; border: 1px solid #eee; border-radius: 6px; background: #eee; }
     </style>
 </head>
 <body>
 
-    <h1><span>🎨</span> LINE 動態貼圖 AI 影格生成器</h1>
-    <div class="tip-box">
-        💡 免費零 API 費！手機直上 Colab 算力，一鍵批次存入 iPhone/Android 相簿。
-    </div>
+<div class="card">
+    <h2>🎨 LINE 動態貼圖生成器</h2>
+    
+    <label>1. Colab 算力網址 (HTTPS):</label>
+    <input type="text" id="colabUrl" placeholder="https://xxxx.trycloudflare.com">
 
-    <!-- 步驟 1: 綁定 Colab -->
-    <div class="card">
-        <label>1. 貼上 Colab 算力網址 (自動記憶)</label>
-        <input type="url" id="colabUrl" placeholder="https://xxxx.trycloudflare.com" onchange="saveColabUrl()">
-    </div>
+    <label>2. 上傳原始圖片:</label>
+    <input type="file" id="imageInput" accept="image/*">
 
-    <!-- 步驟 2: 上傳圖片與 Prompt -->
-    <div class="card">
-        <label>2. 上傳角色照片</label>
-        <input type="file" id="imageInput" accept="image/*">
+    <label>3. 動作描述 (Prompt):</label>
+    <input type="text" id="promptInput" placeholder="例如：開心跳躍、眨眼手搖手">
 
-        <label>3. 動作時間軸 Prompt (LINE 限制 4 秒內)</label>
-        <textarea id="promptInput" rows="3" placeholder="例如：0-2秒舉手比OK；2-4秒彈跳跳躍與眨眼，周圍閃爍黃色線條"></textarea>
+    <label>4. 影格數量:</label>
+    <select id="frameCount">
+        <option value="15">15 幀 (LINE 貼圖標準)</option>
+        <option value="8">8 幀</option>
+    </select>
 
-        <label>4. 輸出影格數 (LINE 規範：5 ~ 20 幀)</label>
-        <select id="frameCount">
-            <option value="12">12 幀 (建議，速度快)</option>
-            <option value="15" selected>15 幀 (標準流暢)</option>
-            <option value="20">20 幀 (最高上限)</option>
-        </select>
+    <button id="generateBtn" onclick="generateFrames()">開始生成動態影格</button>
+</div>
 
-        <button id="generateBtn" onclick="generateFrames()">開始生成 15 幀影格</button>
-    </div>
+<div class="card" id="resultCard" style="display:none;">
+    <h3>🎬 生成結果 (共 <span id="frameCountText">0</span> 幀)</h3>
+    <div class="grid" id="previewGrid"></div>
+</div>
 
-    <!-- 步驟 3: 結果與一鍵存相簿 -->
-    <div class="card" id="resultCard" style="display: none;">
-        <label>影格預覽 (已自動符合 LINE 320x270 與 PNG 去背)</label>
-        <div class="preview-grid" id="previewGrid"></div>
-        <br>
-        <button onclick="saveAllToPhone()" style="background: #007AFF;">一鍵存入手機相簿 (免 ZIP)</button>
-    </div>
-
-    <script>
-        let generatedBlobs = [];
-
-        // 自動登錄與複製網址記憶
-        window.onload = function() {
-            checkAndRedirectBrowser();
-            const savedUrl = localStorage.getItem('colab_url');
-            if (savedUrl) document.getElementById('colabUrl').value = savedUrl;
-        };
-
-        function saveColabUrl() {
-            const url = document.getElementById('colabUrl').value.trim();
-            localStorage.setItem('colab_url', url);
-        }
-
-        // 自動判斷跳轉：Android 自動喚醒 Chrome，iOS 彈窗指引
-        function checkAndRedirectBrowser() {
-            const ua = navigator.userAgent || navigator.vendor;
-            const isInApp = /Line|FBAN|FBAV|Instagram|MicroMessenger/i.test(ua);
-            const isAndroid = /Android/i.test(ua);
-            const isIOS = /iPhone|iPad|iPod/i.test(ua);
-
-            if (isInApp) {
-                if (isAndroid) {
-                    const cleanUrl = window.location.href.replace(/^https?:\/\//, '');
-                    window.location.href = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
-                } else if (isIOS) {
-                    showIOSGuide();
-                }
-            }
-        }
-
-        function showIOSGuide() {
-            const guide = document.createElement('div');
-            guide.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);color:white;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center;';
-            guide.innerHTML = `
-                <h2 style="color:#00B900;">請切換至外部瀏覽器</h2>
-                <p style="font-size:14px;line-height:1.6;color:#ccc;">LINE 內建瀏覽器不支援相簿儲存。<br>請點選右上角 <b>「...」</b>，並選擇 <b>「以預設瀏覽器 (Safari/Chrome) 開啟」</b>。</p>
-                <button onclick="navigator.clipboard.writeText(window.location.href);alert('網址已複製！');" style="background:#007AFF;margin-top:16px;">一鍵複製網址</button>
-            `;
-            document.body.appendChild(guide);
-        }
-
-        // 呼叫 Colab 後端生成
-        async function generateFrames() {
+<script>
+async function generateFrames() {
     const colabUrl = document.getElementById('colabUrl').value.trim().replace(/\/$/, "");
     const imageFile = document.getElementById('imageInput').files[0];
     const prompt = document.getElementById('promptInput').value.trim();
     const frameCount = document.getElementById('frameCount').value;
 
-    if (!colabUrl || !imageFile || !prompt) {
-        alert('請確實填寫 Colab 網址、上傳圖片與 Prompt！');
+    if (!colabUrl || !imageFile) {
+        alert('請確實填寫 Colab 網址並選擇圖片！');
         return;
     }
 
     const btn = document.getElementById('generateBtn');
     btn.disabled = true;
-    btn.innerText = 'AI 動態影格運算中... (約需 5-10 秒)';
+    btn.innerText = 'AI 動態運算中... (約需 5-10 秒)';
 
     const formData = new FormData();
     formData.append('image', imageFile);
@@ -203,87 +69,39 @@
             method: 'POST',
             body: formData
         });
+        
         const data = await response.json();
 
         if (data.status === 'success' && data.frames) {
-            displayRealFrames(data.frames);
+            // 關鍵修復：這裡會依序渲染 Colab 回傳的每張不同畫面的 Base64 圖片
+            renderRealFrames(data.frames);
             document.getElementById('resultCard').style.display = 'block';
         } else {
-            alert('生成失敗：' + data.message);
+            alert('生成失敗：' + (data.message || '未知錯誤'));
         }
     } catch (err) {
-        alert('連線至 Colab 失敗！請檢查 Colab 是否仍在運行。');
+        alert('連線失敗！請檢查 Colab 是否正常運作且網址輸入正確。');
+        console.error(err);
     } finally {
         btn.disabled = false;
-        btn.innerText = '開始生成 15 幀影格';
+        btn.innerText = '開始生成動態影格';
     }
 }
 
-// 顯示真正有動態變化的 15 幀影格
-function displayRealFrames(base64Frames) {
+function renderRealFrames(framesArray) {
     const grid = document.getElementById('previewGrid');
     grid.innerHTML = '';
-    generatedBlobs = [];
+    document.getElementById('frameCountText').innerText = framesArray.length;
 
-    base64Frames.forEach((base64Data, index) => {
+    // 巡迴渲染每一個不同的影格
+    framesArray.forEach((frameBase64, index) => {
         const img = document.createElement('img');
-        img.src = base64Data;
+        img.src = frameBase64;
+        img.title = `第 ${index + 1} 幀`;
         grid.appendChild(img);
-
-        // 轉成 Blob 備用給相簿匯出
-        fetch(base64Data)
-            .then(res => res.blob())
-            .then(blob => generatedBlobs.push(blob));
     });
 }
+</script>
 
-        // 將生成的圖片顯示在網頁畫面上
-        function displayPreviewFrames(file, count) {
-            const grid = document.getElementById('previewGrid');
-            grid.innerHTML = '';
-            generatedBlobs = [];
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                for (let i = 0; i < count; i++) {
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    grid.appendChild(img);
-                    
-                    // 將 DataURL 轉為 Blob 備用
-                    fetch(e.target.result)
-                        .then(res => res.blob())
-                        .then(blob => generatedBlobs.push(blob));
-                }
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // 手機一鍵存入相簿 (Web Share API)
-        async function saveAllToPhone() {
-            if (generatedBlobs.length === 0) {
-                alert('沒有可匯出的影格！');
-                return;
-            }
-
-            const files = generatedBlobs.map((blob, index) => 
-                new File([blob], `line_frame_${String(index + 1).padStart(2, '0')}.png`, { type: 'image/png' })
-            );
-
-            if (navigator.canShare && navigator.canShare({ files })) {
-                try {
-                    await navigator.share({
-                        files: files,
-                        title: 'LINE 貼圖影格',
-                        text: '匯出的 LINE 動態貼圖影格'
-                    });
-                } catch (err) {
-                    console.log('使用者取消儲存');
-                }
-            } else {
-                alert('您的手機瀏覽器限制了多圖一次儲存，請長按下方圖片個別儲存。');
-            }
-        }
-    </script>
 </body>
 </html>
