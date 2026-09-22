@@ -179,46 +179,63 @@
 
         // 呼叫 Colab 後端生成
         async function generateFrames() {
-            const colabUrl = document.getElementById('colabUrl').value.trim().replace(/\/$/, "");
-            const imageFile = document.getElementById('imageInput').files[0];
-            const prompt = document.getElementById('promptInput').value.trim();
-            const frameCount = document.getElementById('frameCount').value;
+    const colabUrl = document.getElementById('colabUrl').value.trim().replace(/\/$/, "");
+    const imageFile = document.getElementById('imageInput').files[0];
+    const prompt = document.getElementById('promptInput').value.trim();
+    const frameCount = document.getElementById('frameCount').value;
 
-            if (!colabUrl || !imageFile || !prompt) {
-                alert('請確實填寫 Colab 網址、上傳圖片與 Prompt！');
-                return;
-            }
+    if (!colabUrl || !imageFile || !prompt) {
+        alert('請確實填寫 Colab 網址、上傳圖片與 Prompt！');
+        return;
+    }
 
-            const btn = document.getElementById('generateBtn');
-            btn.disabled = true;
-            btn.innerText = 'AI 處理與去背中... (約需 10 秒)';
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.innerText = 'AI 動態影格運算中... (約需 5-10 秒)';
 
-            const formData = new FormData();
-            formData.append('image', imageFile);
-            formData.append('prompt', prompt);
-            formData.append('frame_count', frameCount);
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    formData.append('prompt', prompt);
+    formData.append('frame_count', frameCount);
 
-            try {
-                const response = await fetch(`${colabUrl}/generate-frames`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
+    try {
+        const response = await fetch(`${colabUrl}/generate-frames`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
 
-                if (data.status === 'success') {
-                    // 生成模擬 PNG 影格展示 (真實連線時對接後端真實圖像)
-                    displayPreviewFrames(imageFile, parseInt(frameCount));
-                    document.getElementById('resultCard').style.display = 'block';
-                } else {
-                    alert('生成失敗：' + data.message);
-                }
-            } catch (err) {
-                alert('連線至 Colab 失敗！請檢查 Colab 是否仍在運行，或網址是否輸入正確。');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = '開始生成 15 幀影格';
-            }
+        if (data.status === 'success' && data.frames) {
+            displayRealFrames(data.frames);
+            document.getElementById('resultCard').style.display = 'block';
+        } else {
+            alert('生成失敗：' + data.message);
         }
+    } catch (err) {
+        alert('連線至 Colab 失敗！請檢查 Colab 是否仍在運行。');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = '開始生成 15 幀影格';
+    }
+}
+
+// 顯示真正有動態變化的 15 幀影格
+function displayRealFrames(base64Frames) {
+    const grid = document.getElementById('previewGrid');
+    grid.innerHTML = '';
+    generatedBlobs = [];
+
+    base64Frames.forEach((base64Data, index) => {
+        const img = document.createElement('img');
+        img.src = base64Data;
+        grid.appendChild(img);
+
+        // 轉成 Blob 備用給相簿匯出
+        fetch(base64Data)
+            .then(res => res.blob())
+            .then(blob => generatedBlobs.push(blob));
+    });
+}
 
         // 將生成的圖片顯示在網頁畫面上
         function displayPreviewFrames(file, count) {
