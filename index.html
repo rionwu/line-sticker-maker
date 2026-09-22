@@ -10,7 +10,14 @@
         label { font-weight: bold; display: block; margin-top: 10px; }
         input, select, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; box-sizing: border-box; }
         button { background: #00b900; color: white; font-weight: bold; border: none; margin-top: 15px; cursor: pointer; }
-        button:disabled { background: #ccc; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        /* 進度條樣式 */
+        .progress-box { display: none; margin-top: 15px; }
+        .progress-bar-bg { width: 100%; background: #e0e0e0; height: 18px; border-radius: 9px; overflow: hidden; position: relative; }
+        .progress-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #00b900, #00e600); transition: width 0.3s ease; }
+        .progress-text { text-align: center; font-size: 0.85rem; color: #666; margin-top: 6px; font-weight: bold; }
+
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
         .grid img { width: 100%; height: auto; border: 1px solid #eee; border-radius: 6px; background: #eee; }
     </style>
@@ -36,6 +43,14 @@
     </select>
 
     <button id="generateBtn" onclick="generateFrames()">開始生成動態影格</button>
+
+    <!-- 進度條元件 -->
+    <div class="progress-box" id="progressBox">
+        <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">AI 影格生成中... 0%</div>
+    </div>
 </div>
 
 <div class="card" id="resultCard" style="display:none;">
@@ -44,6 +59,8 @@
 </div>
 
 <script>
+let progressTimer = null;
+
 async function generateFrames() {
     const colabUrl = document.getElementById('colabUrl').value.trim().replace(/\/$/, "");
     const imageFile = document.getElementById('imageInput').files[0];
@@ -56,8 +73,27 @@ async function generateFrames() {
     }
 
     const btn = document.getElementById('generateBtn');
+    const progressBox = document.getElementById('progressBox');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+
     btn.disabled = true;
-    btn.innerText = 'AI 動態運算中... (約需 5-10 秒)';
+    btn.innerText = '處理中...';
+    progressBox.style.display = 'block';
+
+    // 啟動擬真進度條 (平滑跑動至 95%，等待 API 完成後衝至 100%)
+    let currentPercent = 0;
+    progressFill.style.width = '0%';
+    progressText.innerText = 'AI 影格生成中... 0%';
+
+    progressTimer = setInterval(() => {
+        if (currentPercent < 90) {
+            currentPercent += Math.floor(Math.random() * 5) + 2; // 隨機增加 2%~6%
+            if (currentPercent > 90) currentPercent = 90;
+            progressFill.style.width = `${currentPercent}%`;
+            progressText.innerText = `AI 影格生成中... ${currentPercent}%`;
+        }
+    }, 400);
 
     const formData = new FormData();
     formData.append('image', imageFile);
@@ -73,16 +109,26 @@ async function generateFrames() {
         const data = await response.json();
 
         if (data.status === 'success' && data.frames) {
-            // 關鍵修復：這裡會依序渲染 Colab 回傳的每張不同畫面的 Base64 圖片
-            renderRealFrames(data.frames);
-            document.getElementById('resultCard').style.display = 'block';
+            // 完成時衝爆至 100%
+            clearInterval(progressTimer);
+            progressFill.style.width = '100%';
+            progressText.innerText = '完成！100%';
+
+            setTimeout(() => {
+                renderRealFrames(data.frames);
+                document.getElementById('resultCard').style.display = 'block';
+                progressBox.style.display = 'none';
+            }, 500);
         } else {
             alert('生成失敗：' + (data.message || '未知錯誤'));
+            progressBox.style.display = 'none';
         }
     } catch (err) {
         alert('連線失敗！請檢查 Colab 是否正常運作且網址輸入正確。');
         console.error(err);
+        progressBox.style.display = 'none';
     } finally {
+        clearInterval(progressTimer);
         btn.disabled = false;
         btn.innerText = '開始生成動態影格';
     }
@@ -93,7 +139,6 @@ function renderRealFrames(framesArray) {
     grid.innerHTML = '';
     document.getElementById('frameCountText').innerText = framesArray.length;
 
-    // 巡迴渲染每一個不同的影格
     framesArray.forEach((frameBase64, index) => {
         const img = document.createElement('img');
         img.src = frameBase64;
